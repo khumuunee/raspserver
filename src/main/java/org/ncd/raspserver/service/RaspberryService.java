@@ -428,7 +428,7 @@ public class RaspberryService {
 			try {
 				Map<String, Object> playlistData = getPlaylistData(rasp);
 				List<ScheduledSound> listScheduledSound = getScheduledSounds(rasp);
-				String url = "http://" + rasp.getIpAddress() + raspRestServiceUrl + "transferPlaylist";
+				String url = "http://" + rasp.getIpAddress() + raspRestServiceUrl + "syncRaspberry";
 				CompletableFuture<Map<String, Object>> completableFuture = CompletableFuture.supplyAsync(() -> {
 					try {
 						return transferPlaylistToRasp(url, (Playlist) playlistData.get("playlist"), (List<PlaylistSound>) playlistData.get("listSound"), listScheduledSound, rasp.getId());
