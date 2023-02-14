@@ -14,6 +14,7 @@ import org.ncd.raspserver.entity.Playlist;
 import org.ncd.raspserver.entity.PlaylistSound;
 import org.ncd.raspserver.entity.Raspberry;
 import org.ncd.raspserver.entity.RaspberryGroup;
+import org.ncd.raspserver.entity.RaspberryGroupScheduledSoundGroup;
 import org.ncd.raspserver.entity.RaspberryGroupsPlaylist;
 import org.ncd.raspserver.entity.RaspberrysPlaylist;
 import org.ncd.raspserver.entity.RaspberrysScheduledSoundGroup;
@@ -24,6 +25,7 @@ import org.ncd.raspserver.repository.ActionLogRepo;
 import org.ncd.raspserver.repository.PlaylistRepo;
 import org.ncd.raspserver.repository.PlaylistSoundRepo;
 import org.ncd.raspserver.repository.RaspberryGroupRepo;
+import org.ncd.raspserver.repository.RaspberryGroupScheduledSoundGroupRepo;
 import org.ncd.raspserver.repository.RaspberryGroupsPlaylistRepo;
 import org.ncd.raspserver.repository.RaspberryRepo;
 import org.ncd.raspserver.repository.RaspberrysPlaylistRepo;
@@ -70,6 +72,9 @@ public class RaspberryService {
 
 	@Autowired
 	private RaspberrysScheduledSoundGroupRepo raspberrysScheduledSoundGroupRepo;
+
+	@Autowired
+	private RaspberryGroupScheduledSoundGroupRepo raspberryGroupScheduledSoundGroupRepo;
 
 	@Autowired
 	private ScheduledSoundGroupRepo scheduledSoundGroupRepo;
@@ -150,6 +155,7 @@ public class RaspberryService {
 					count += scheduledSoundRepo.countByGroupId(group.getGroupId());
 				rasp.setScheduledSoundCount((int) count);
 			}
+			rasp.setCurrentStatus("empty");
 		}
 		return ResponseTool.createRes(Map.of("listRasp", listRasp));
 	}
@@ -521,14 +527,26 @@ public class RaspberryService {
 
 	private List<ScheduledSound> getScheduledSounds(Raspberry rasp) {
 		List<RaspberrysScheduledSoundGroup> listGroup = raspberrysScheduledSoundGroupRepo.findByRaspberryId(rasp.getId());
+		List<RaspberryGroupScheduledSoundGroup> listGroupInGroup = null;
+		if (!BaseTool.khoosonStringEsekh(rasp.getGroupId()))
+			listGroupInGroup = raspberryGroupScheduledSoundGroupRepo.findByRaspberryGroupId(rasp.getGroupId());
 		List<ScheduledSound> listScheduledSound = new ArrayList<>();
-		if (BaseTool.khoosonJagsaaltEsekh(listGroup))
+		if (BaseTool.khoosonJagsaaltEsekh(listGroup) && BaseTool.khoosonJagsaaltEsekh(listGroupInGroup))
 			return listScheduledSound;
-		listGroup.forEach(x -> {
-			List<ScheduledSound> sounds = scheduledSoundRepo.findByGroupId(x.getGroupId());
-			if (!BaseTool.khoosonJagsaaltEsekh(sounds))
-				listScheduledSound.addAll(sounds);
-		});
+		if (!BaseTool.khoosonJagsaaltEsekh(listGroup)) {
+			listGroup.forEach(x -> {
+				List<ScheduledSound> sounds = scheduledSoundRepo.findByGroupId(x.getGroupId());
+				if (!BaseTool.khoosonJagsaaltEsekh(sounds))
+					listScheduledSound.addAll(sounds);
+			});
+		}
+		if (!BaseTool.khoosonJagsaaltEsekh(listGroupInGroup)) {
+			listGroupInGroup.forEach(x -> {
+				List<ScheduledSound> sounds = scheduledSoundRepo.findByGroupId(x.getGroupId());
+				if (!BaseTool.khoosonJagsaaltEsekh(sounds))
+					listScheduledSound.addAll(sounds);
+			});
+		}
 		return listScheduledSound;
 	}
 
@@ -574,8 +592,11 @@ public class RaspberryService {
 	}
 
 	private SimpleClientHttpRequestFactory getClientHttpRequestFactory() {
+		return getClientHttpRequestFactory(3000);
+	}
+	private SimpleClientHttpRequestFactory getClientHttpRequestFactory(int connectTimeout) {
 		SimpleClientHttpRequestFactory clientHttpRequestFactory = new SimpleClientHttpRequestFactory();
-		clientHttpRequestFactory.setConnectTimeout(3000);
+		clientHttpRequestFactory.setConnectTimeout(connectTimeout);
 		return clientHttpRequestFactory;
 	}
 
@@ -639,25 +660,36 @@ public class RaspberryService {
 	}
 
 	public Map<String, Object> getCurrentPlayerStatusFromRaspberry(Map<String, Object> param) throws Exception {
-		Thread.sleep(500);
 		String raspIpAddress = (String) param.get("raspIpAddress");
-		Map<String, Object> res = getCurrentPlayerStatusFromRaspberry(raspIpAddress);
-		if (!(boolean) res.get("isPlaying")) {
+		boolean needSleep = true;
+		int connectionTimeOut = needSleep ? 3000 : 1000;
+		if (raspIpAddress.contains("SPLITFROMHERE")) {
+			needSleep = false;
+			raspIpAddress = raspIpAddress.split("SPLITFROMHERE")[0];
+		}
+		if (needSleep)
 			Thread.sleep(500);
-			res = getCurrentPlayerStatusFromRaspberry(raspIpAddress);
-			if (!(boolean) res.get("isPlaying")) {
+		Map<String, Object> res = getCurrentPlayerStatusFromRaspberry(raspIpAddress, connectionTimeOut);
+		if (!needSleep)
+			return res;
+		if (!(boolean) res.get("isPlaying")) {
+			if (needSleep)
 				Thread.sleep(500);
-				res = getCurrentPlayerStatusFromRaspberry(raspIpAddress);
+			res = getCurrentPlayerStatusFromRaspberry(raspIpAddress, connectionTimeOut);
+			if (!(boolean) res.get("isPlaying")) {
+				if (needSleep)
+					Thread.sleep(500);
+				res = getCurrentPlayerStatusFromRaspberry(raspIpAddress, connectionTimeOut);
 			}
 		}
 		return res;
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private Map<String, Object> getCurrentPlayerStatusFromRaspberry(String raspIpAddress) throws Exception {
+	private Map<String, Object> getCurrentPlayerStatusFromRaspberry(String raspIpAddress, int connectionTimeOut) throws Exception {
 		String raspRestServiceUrl = ServiceTool.getRaspRestServiceUrl();
 		String url = "http://" + raspIpAddress + raspRestServiceUrl + "getCurrentPlayerStatusFromRaspberry";
-		RestTemplate restTemplate = new RestTemplate(getClientHttpRequestFactory());
+		RestTemplate restTemplate = new RestTemplate(getClientHttpRequestFactory(connectionTimeOut));
 		ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
 		Map<String, Object> res = response.getBody();
 		return res;
@@ -760,18 +792,35 @@ public class RaspberryService {
 		return ResponseTool.createRes();
 	}
 
-	public Map<String, Object> loadRaspberrysScheduledSoundGroup(String raspId) {
-		List<RaspberrysScheduledSoundGroup> listRaspberrysScheduledSoundGroup = raspberrysScheduledSoundGroupRepo.findByRaspberryId(raspId);
+	public Map<String, Object> loadRaspberrysScheduledSoundGroup(String raspId) throws Exception {
+		Raspberry rasp = raspberryRepo.findById(raspId).orElse(null);
+		if (rasp == null)
+			throw new Exception("Raspberry not found with id: " + raspId);
+		List<RaspberrysScheduledSoundGroup> listRaspberrysScheduledSoundGroup = new ArrayList<>();
+		List<RaspberrysScheduledSoundGroup> lstRaspberrysScheduledSoundGroup = raspberrysScheduledSoundGroupRepo.findByRaspberryId(raspId);
+		if (!BaseTool.khoosonJagsaaltEsekh(lstRaspberrysScheduledSoundGroup))
+			listRaspberrysScheduledSoundGroup.addAll(lstRaspberrysScheduledSoundGroup);
+		if (!BaseTool.khoosonStringEsekh(rasp.getGroupId())) {
+			List<RaspberryGroupScheduledSoundGroup> listRaspberryGroupScheduledSoundGroup = raspberryGroupScheduledSoundGroupRepo.findByRaspberryGroupId(rasp.getGroupId());
+			if (!BaseTool.khoosonJagsaaltEsekh(listRaspberryGroupScheduledSoundGroup)) {
+				for (RaspberryGroupScheduledSoundGroup group : listRaspberryGroupScheduledSoundGroup) {
+					RaspberrysScheduledSoundGroup sgroup = listRaspberrysScheduledSoundGroup.stream().filter(x -> BaseTool.jishiltStringTentsuu(x.getGroupId(), group.getGroupId())).findAny().orElse(null);
+					if (sgroup != null)
+						continue;
+					listRaspberrysScheduledSoundGroup.add(new RaspberrysScheduledSoundGroup(group.getId(), raspId, group.getGroupId(), null, null, null, 1));
+				}
+			}
+		}
 		if (BaseTool.khoosonJagsaaltEsekh(listRaspberrysScheduledSoundGroup))
 			return ResponseTool.createRes();
 		List<String> listGroupId = listRaspberrysScheduledSoundGroup.stream().map(x -> x.getGroupId()).collect(Collectors.toList());
 		List<ScheduledSoundGroup> listGroup = scheduledSoundGroupRepo.findAllById(listGroupId);
 		if (BaseTool.khoosonJagsaaltEsekh(listGroup))
-			throw new MyException("Not found Playlist with ids: " + listGroupId);
+			throw new MyException("Not found ScheduledSoundGroup with ids: " + listGroupId);
 		listRaspberrysScheduledSoundGroup.forEach(x -> {
 			ScheduledSoundGroup group = listGroup.stream().filter(s -> BaseTool.jishiltStringTentsuu(s.getId(), x.getGroupId())).findAny().orElse(null);
 			if (group == null)
-				throw new MyException("Not found Playlist with id: " + x.getGroupId());
+				throw new MyException("Not found ScheduledSoundGroup with id: " + x.getGroupId());
 			x.setGroupName(group.getName());
 		});
 		return ResponseTool.createRes(Map.of("listGroup", listRaspberrysScheduledSoundGroup));
@@ -787,7 +836,7 @@ public class RaspberryService {
 			throw new MyException("RaspberrysScheduledSoundGroup not found with raspId: " + raspId);
 		List<RaspberrysScheduledSoundGroup> listDeleteGroup = listRaspberrysScheduledSoundGroup.stream().filter(x -> groupIds.contains(x.getGroupId())).collect(Collectors.toList());
 		if (BaseTool.khoosonJagsaaltEsekh(listDeleteGroup))
-			throw new MyException("RaspberrysScheduledSoundGroup not found with groupName: " + groupIds);
+			throw new MyException("RaspberrysScheduledSoundGroup not found with groupIds: " + groupIds);
 		raspberrysScheduledSoundGroupRepo.deleteAll(listDeleteGroup);
 		ServiceTool.createActionLog("remove scheduled sound groups from raspberry");
 		return ResponseTool.createRes();
@@ -907,6 +956,62 @@ public class RaspberryService {
 		listRasp.removeAll(listUpdateRasp);
 		ServiceTool.createActionLog("remove raspberrys from group");
 		return ResponseTool.createRes(Map.of("listRasp", listRasp));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Transactional
+	public Map<String, Object> addScheduledSoundGroupToRaspberryGroup(Map<String, Object> param) throws Exception {
+		String raspGroupId = (String) param.get("raspGroupId");
+		List<String> listAddedGroupId = (List<String>) param.get("addedGroupIds");
+		List<RaspberryGroupScheduledSoundGroup> listRaspberryGroupScheduledSoundGroup = new ArrayList<>();
+		String id = ServiceTool.generateId();
+		Date date = new Date();
+		for (String groupId : listAddedGroupId) {
+			RaspberryGroupScheduledSoundGroup raspberrysScheduledSoundGroup = new RaspberryGroupScheduledSoundGroup();
+			raspberrysScheduledSoundGroup.setId(id);
+			raspberrysScheduledSoundGroup.setRaspberryGroupId(raspGroupId);
+			raspberrysScheduledSoundGroup.setGroupId(groupId);
+			raspberrysScheduledSoundGroup.setCreatedDate(date);
+			raspberrysScheduledSoundGroup.setCreatedUser("user");
+			listRaspberryGroupScheduledSoundGroup.add(raspberrysScheduledSoundGroup);
+			id = ServiceTool.increaseIdByOne(id);
+		}
+		raspberryGroupScheduledSoundGroupRepo.saveAll(listRaspberryGroupScheduledSoundGroup);
+		ServiceTool.createActionLog("add scheduled sound group to raspberry group");
+		return ResponseTool.createRes();
+	}
+
+	public Map<String, Object> loadRaspberryGroupScheduledSoundGroup(String raspGroupId) {
+		List<RaspberryGroupScheduledSoundGroup> listRaspberryGroupScheduledSoundGroup = raspberryGroupScheduledSoundGroupRepo.findByRaspberryGroupId(raspGroupId);
+		if (BaseTool.khoosonJagsaaltEsekh(listRaspberryGroupScheduledSoundGroup))
+			return ResponseTool.createRes();
+		List<String> listGroupId = listRaspberryGroupScheduledSoundGroup.stream().map(x -> x.getGroupId()).collect(Collectors.toList());
+		List<ScheduledSoundGroup> listGroup = scheduledSoundGroupRepo.findAllById(listGroupId);
+		if (BaseTool.khoosonJagsaaltEsekh(listGroup))
+			throw new MyException("Not found ScheduledSoundGroup with ids: " + listGroupId);
+		listRaspberryGroupScheduledSoundGroup.forEach(x -> {
+			ScheduledSoundGroup group = listGroup.stream().filter(s -> BaseTool.jishiltStringTentsuu(s.getId(), x.getGroupId())).findAny().orElse(null);
+			if (group == null)
+				throw new MyException("Not found ScheduledSoundGroup with id: " + x.getGroupId());
+			x.setGroupName(group.getName());
+		});
+		return ResponseTool.createRes(Map.of("listGroup", listRaspberryGroupScheduledSoundGroup));
+	}
+
+	@Transactional
+	@SuppressWarnings("unchecked")
+	public Map<String, Object> removeScheduledSoundGroupsFromRaspberryGroup(Map<String, Object> param) {
+		String raspGroupId = (String) param.get("raspGroupId");
+		List<String> groupIds = (List<String>) param.get("groupIds");
+		List<RaspberryGroupScheduledSoundGroup> listRaspberryGroupScheduledSoundGroup = raspberryGroupScheduledSoundGroupRepo.findByRaspberryGroupId(raspGroupId);
+		if (BaseTool.khoosonJagsaaltEsekh(listRaspberryGroupScheduledSoundGroup))
+			throw new MyException("RaspberryGroupScheduledSoundGroup not found with raspId: " + raspGroupId);
+		List<RaspberryGroupScheduledSoundGroup> listDeleteGroup = listRaspberryGroupScheduledSoundGroup.stream().filter(x -> groupIds.contains(x.getGroupId())).collect(Collectors.toList());
+		if (BaseTool.khoosonJagsaaltEsekh(listDeleteGroup))
+			throw new MyException("RaspberryGroupScheduledSoundGroup not found with groupIds: " + groupIds);
+		raspberryGroupScheduledSoundGroupRepo.deleteAll(listDeleteGroup);
+		ServiceTool.createActionLog("remove scheduled sound groups from raspberry group");
+		return ResponseTool.createRes();
 	}
 
 }

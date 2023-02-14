@@ -628,5 +628,35 @@ public class RaspServerController {
 			return ResponseTool.createResWithError(e);
 		}
 	}
+	
+	@PostMapping("addScheduledSoundGroupToRaspberryGroup")
+	public Map<String, Object> addScheduledSoundGroupToRaspberryGroup(@RequestBody Map<String, Object> param) {
+		try {
+			return raspberryService.addScheduledSoundGroupToRaspberryGroup(param);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return ResponseTool.createResWithError(e);
+		}
+	}
+	
+	@GetMapping("loadRaspberryGroupScheduledSoundGroup/{raspGroupId}")
+	public Map<String, Object> loadRaspberryGroupScheduledSoundGroup(@PathVariable String raspGroupId) {
+		try {
+			return raspberryService.loadRaspberryGroupScheduledSoundGroup(raspGroupId);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return ResponseTool.createResWithError(e);
+		}
+	}
+	
+	@PostMapping("removeScheduledSoundGroupsFromRaspberryGroup")
+	public Map<String, Object> removeScheduledSoundGroupsFromRaspberryGroup(@RequestBody Map<String, Object> param) {
+		try {
+			return raspberryService.removeScheduledSoundGroupsFromRaspberryGroup(param);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return ResponseTool.createResWithError(e);
+		}
+	}
 
 }

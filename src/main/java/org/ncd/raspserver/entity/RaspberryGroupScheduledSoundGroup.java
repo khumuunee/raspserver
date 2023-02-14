@@ -19,15 +19,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "raspberrysscheduledsoundgroup")
-public class RaspberrysScheduledSoundGroup implements Cloneable{
+@Table(name = "raspberrygroupscheduledsoundgroup")
+public class RaspberryGroupScheduledSoundGroup implements Cloneable{
 	
 	@Id
 	@Column(name = "id")
 	private String id;
 
-	@Column(name = "raspberryId")
-	private String raspberryId;
+	@Column(name = "raspberryGroupId")
+	private String raspberryGroupId;
 	
 	@Column(name = "groupid")
 	private String groupId;
@@ -45,8 +45,5 @@ public class RaspberrysScheduledSoundGroup implements Cloneable{
 	
 	@Transient
 	private String groupName;
-	
-	@Transient
-	private int isRaspGroup;
 	
 }
