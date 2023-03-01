@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.ncd.raspserver.entity.Raspberry;
 import org.ncd.raspserver.model.Sound;
+import org.ncd.raspserver.service.LoginService;
 import org.ncd.raspserver.service.RaspberryService;
 import org.ncd.raspserver.service.SoundPlaylistService;
 import org.ncd.raspserver.tools.ResponseTool;
@@ -27,6 +28,9 @@ public class RaspServerController {
 	
 	@Autowired
 	private RaspberryService raspberryService;
+	
+	@Autowired
+	private LoginService loginService;
 	
 	@PostMapping("uploadSound")
 	public Map<String, Object> uploadSound(@RequestParam("file") MultipartFile file, @RequestParam("soundType") String soundType) {
@@ -657,6 +661,11 @@ public class RaspServerController {
 			e.printStackTrace();
 			return ResponseTool.createResWithError(e);
 		}
+	}
+	
+	@PostMapping("login")
+	public String login(@RequestBody Map<String, String> body) throws Exception {
+		return loginService.login(body);
 	}
 
 }
