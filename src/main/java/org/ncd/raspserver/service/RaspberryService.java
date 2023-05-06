@@ -155,6 +155,15 @@ public class RaspberryService {
 					count += scheduledSoundRepo.countByGroupId(group.getGroupId());
 				rasp.setScheduledSoundCount((int) count);
 			}
+			if(!BaseTool.khoosonStringEsekh(rasp.getGroupId())) {
+				List<RaspberryGroupScheduledSoundGroup> listRSGroup = raspberryGroupScheduledSoundGroupRepo.findByRaspberryGroupId(rasp.getGroupId());
+				if(!BaseTool.khoosonJagsaaltEsekh(listRSGroup)) {
+					long count = 0;
+					for (RaspberryGroupScheduledSoundGroup group : listRSGroup)
+						count += scheduledSoundRepo.countByGroupId(group.getGroupId());
+					rasp.setScheduledSoundCount(rasp.getScheduledSoundCount() +  (int) count);
+				}	
+			}
 			rasp.setCurrentStatus("empty");
 		}
 		return ResponseTool.createRes(Map.of("listRasp", listRasp));

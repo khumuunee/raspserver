@@ -21,6 +21,7 @@ import org.ncd.raspserver.model.MyException;
 import org.ncd.raspserver.model.Sound;
 import org.ncd.raspserver.repository.PlaylistRepo;
 import org.ncd.raspserver.repository.PlaylistSoundRepo;
+import org.ncd.raspserver.repository.RaspberryGroupScheduledSoundGroupRepo;
 import org.ncd.raspserver.repository.RaspberryGroupsPlaylistRepo;
 import org.ncd.raspserver.repository.RaspberrysPlaylistRepo;
 import org.ncd.raspserver.repository.RaspberrysScheduledSoundGroupRepo;
@@ -58,6 +59,9 @@ public class SoundPlaylistService {
 	
 	@Autowired
 	private RaspberrysScheduledSoundGroupRepo raspberrysScheduledSoundGroupRepo;
+	
+	@Autowired
+	private RaspberryGroupScheduledSoundGroupRepo raspberryGroupScheduledSoundGroupRepo;
 	
 	public Map<String, Object> uploadSound(MultipartFile multipartFile, String soundType) throws Exception {
 		String soundFolderPath = ServiceTool.getSoundFolderPath();
@@ -402,6 +406,7 @@ public class SoundPlaylistService {
 			scheduledSoundGroupRepo.deleteById(id);
 			scheduledSoundRepo.deleteByGroupId(id);
 			raspberrysScheduledSoundGroupRepo.deleteByGroupId(id);
+			raspberryGroupScheduledSoundGroupRepo.deleteByGroupId(id);
 		}
 		ServiceTool.createActionLog("delete scheduled sound groups");
 		return ResponseTool.createRes();
