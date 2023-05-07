@@ -825,13 +825,19 @@ public class RaspberryService {
 		List<String> listGroupId = listRaspberrysScheduledSoundGroup.stream().map(x -> x.getGroupId()).collect(Collectors.toList());
 		List<ScheduledSoundGroup> listGroup = scheduledSoundGroupRepo.findAllById(listGroupId);
 		if (BaseTool.khoosonJagsaaltEsekh(listGroup))
-			throw new MyException("Not found ScheduledSoundGroup with ids: " + listGroupId);
-		listRaspberrysScheduledSoundGroup.forEach(x -> {
-			ScheduledSoundGroup group = listGroup.stream().filter(s -> BaseTool.jishiltStringTentsuu(s.getId(), x.getGroupId())).findAny().orElse(null);
-			if (group == null)
-				throw new MyException("Not found ScheduledSoundGroup with id: " + x.getGroupId());
-			x.setGroupName(group.getName());
-		});
+			listRaspberrysScheduledSoundGroup = new ArrayList<>();
+		if(!BaseTool.khoosonJagsaaltEsekh(listRaspberrysScheduledSoundGroup)) {
+			List<RaspberrysScheduledSoundGroup> listDeleteItem = new ArrayList<>();
+			listRaspberrysScheduledSoundGroup.forEach(x -> {
+				ScheduledSoundGroup group = listGroup.stream().filter(s -> BaseTool.jishiltStringTentsuu(s.getId(), x.getGroupId())).findAny().orElse(null);
+				if (group == null)
+					listDeleteItem.add(x);
+				else
+					x.setGroupName(group.getName());
+			});
+			if(!BaseTool.khoosonJagsaaltEsekh(listDeleteItem))
+				listRaspberrysScheduledSoundGroup.removeAll(listDeleteItem);
+		}
 		return ResponseTool.createRes(Map.of("listGroup", listRaspberrysScheduledSoundGroup));
 	}
 
@@ -997,13 +1003,19 @@ public class RaspberryService {
 		List<String> listGroupId = listRaspberryGroupScheduledSoundGroup.stream().map(x -> x.getGroupId()).collect(Collectors.toList());
 		List<ScheduledSoundGroup> listGroup = scheduledSoundGroupRepo.findAllById(listGroupId);
 		if (BaseTool.khoosonJagsaaltEsekh(listGroup))
-			throw new MyException("Not found ScheduledSoundGroup with ids: " + listGroupId);
-		listRaspberryGroupScheduledSoundGroup.forEach(x -> {
-			ScheduledSoundGroup group = listGroup.stream().filter(s -> BaseTool.jishiltStringTentsuu(s.getId(), x.getGroupId())).findAny().orElse(null);
-			if (group == null)
-				throw new MyException("Not found ScheduledSoundGroup with id: " + x.getGroupId());
-			x.setGroupName(group.getName());
-		});
+			listRaspberryGroupScheduledSoundGroup = new ArrayList<>();
+		if(!BaseTool.khoosonJagsaaltEsekh(listRaspberryGroupScheduledSoundGroup)) {
+			List<RaspberryGroupScheduledSoundGroup> listDeleteItem = new ArrayList<>();
+			listRaspberryGroupScheduledSoundGroup.forEach(x -> {
+				ScheduledSoundGroup group = listGroup.stream().filter(s -> BaseTool.jishiltStringTentsuu(s.getId(), x.getGroupId())).findAny().orElse(null);
+				if (group == null)
+					listDeleteItem.add(x);
+				else
+					x.setGroupName(group.getName());
+			});
+			if(!BaseTool.khoosonJagsaaltEsekh(listDeleteItem))
+				listRaspberryGroupScheduledSoundGroup.removeAll(listDeleteItem);
+		}
 		return ResponseTool.createRes(Map.of("listGroup", listRaspberryGroupScheduledSoundGroup));
 	}
 
